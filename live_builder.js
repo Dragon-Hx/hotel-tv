@@ -26,7 +26,7 @@ const UPSTREAM = [
 
 // 香港重点台：云端(GitHub美国服务器)探测经常连不上国内/香港源而误判死链，
 // 但这些台国内电视往往能播。命中名单的台无论探测结果如何都强制保留，让电视端自己挑。
-const HK_KEEP_RE = /翡翠|Jade|明珠|Pearl|ViuTV|HOY|RTHK|港台|凤凰|香港|開電視|开电视|now新闻|now新聞|i-Cable|有线/i;
+const HK_KEEP_RE = /翡翠|Jade|明珠|Pearl|ViuTV|HOY|RTHK|港台|凤凰|Phoenix|香港|開電視|开电视|now新闻|now新聞|i-Cable|有线/i;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0';
 const PROBE_TIMEOUT = 8000; // 单流探测超时（毫秒）
