@@ -21,7 +21,12 @@ const UPSTREAM = [
   { name: '香港台', url: 'https://iptv-org.github.io/iptv/countries/hk.m3u' },
   { name: '大陆台', url: 'https://iptv-org.github.io/iptv/countries/cn.m3u' },
   { name: '大陆补充', url: 'https://m3u.ibert.me/cn_c.m3u' },
+  { name: '香港专源iill', url: 'https://tv.iill.top/m3u/HK' },
 ];
+
+// 香港重点台：云端(GitHub美国服务器)探测经常连不上国内/香港源而误判死链，
+// 但这些台国内电视往往能播。命中名单的台无论探测结果如何都强制保留，让电视端自己挑。
+const HK_KEEP_RE = /翡翠|Jade|明珠|Pearl|ViuTV|HOY|RTHK|港台|凤凰|香港|開電視|开电视|now新闻|now新聞|i-Cable|有线/i;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0';
 const PROBE_TIMEOUT = 8000; // 单流探测超时（毫秒）
@@ -246,6 +251,9 @@ async function pool(items, worker, size) {
         picked.push({ key, ch: okList[0], uncertain: false });
       } else if (uncertainList.length > 0) {
         picked.push({ key, ch: uncertainList[0], uncertain: true });
+      } else if (HK_KEEP_RE.test(chans[0].display)) {
+        // 香港重点台：探测全失败也强制保留（国内电视可能能播），标记 hkKeep
+        picked.push({ key, ch: chans[0], uncertain: true, hkKeep: true });
       } else {
         dead.push({ key, display: chans[0].display });
       }
@@ -255,7 +263,8 @@ async function pool(items, worker, size) {
 
   const probeMs = Date.now() - t0;
   const uncertainCount = picked.filter((p) => p.uncertain).length;
-  report.push(`[探测] 可用频道 ${picked.length} 个（其中云端探测超时/待定 ${uncertainCount} 个，可能受服务器地理位置影响），失效频道 ${dead.length} 个，耗时 ${(probeMs / 1000).toFixed(1)}s`);
+  const hkKeepCount = picked.filter((p) => p.hkKeep).length;
+  report.push(`[探测] 可用频道 ${picked.length} 个（其中云端探测超时/待定 ${uncertainCount} 个，香港强制保留 ${hkKeepCount} 个），失效频道 ${dead.length} 个，耗时 ${(probeMs / 1000).toFixed(1)}s`);
   if (dead.length > 0) {
     const sample = dead.slice(0, 20).map((d) => d.display).join('、');
     report.push(`[失效示例] ${sample}${dead.length > 20 ? ' 等' + dead.length + ' 个' : ''}`);
