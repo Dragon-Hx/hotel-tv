@@ -10,6 +10,6 @@
     { "key": "wujin", "name": "无尽资源", "type": 0, "api": "https://api.wujinapi.com/api.php/provide/vod/", "searchable": 1, "changeable": 0, "ext": "", "playUrl": "", "filter": {} }
   ],
   "lives": [
-    { "name": "智能聚合直播", "type": 0, "url": "https://gh-proxy.com/https://raw.githubusercontent.com/huangshaoze37-tech/hotel-tv/main/live_all.m3u", "epg": "" }
+    { "name": "智能聚合直播", "type": 0, "url": "https://cdn.jsdelivr.net/gh/huangshaoze37-tech/hotel-tv@main/live_all.m3u", "epg": "" }
   ]
 }
