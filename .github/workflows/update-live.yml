@@ -1,0 +1,35 @@
+name: 每日自动更新直播源
+
+on:
+  # 每天北京时间 06:30 自动运行（GitHub 用 UTC，22:30 UTC = 06:30 北京时间）
+  schedule:
+    - cron: '30 22 * * *'
+  # 也可以手动触发：仓库 Actions 页 → 左侧点这个任务 → Run workflow
+  workflow_dispatch: {}
+
+# 授权：允许自动把更新后的直播清单提交回仓库
+permissions:
+  contents: write
+
+jobs:
+  update-live:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 运行直播源聚合脚本
+        run: node live_builder.js
+
+      - name: 提交并推送更新
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add live_all.m3u live_builder_report.txt
+          git commit -m "每日直播源自动更新 $(date +%F)" || echo "本次无变化，无需提交"
+          git push
