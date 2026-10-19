@@ -270,16 +270,21 @@ async function pool(items, worker, size) {
     report.push(`[失效示例] ${sample}${dead.length > 20 ? ' 等' + dead.length + ' 个' : ''}`);
   }
 
-  // 4. 生成聚合 M3U（按分组排序）
+  // 4. 生成聚合 M3U（香港台单独分组并置顶，方便电视端快速找到）
   const byGroup = {};
   for (const p of picked) {
-    const g = p.ch.group || '未分组';
+    const g = (p.hkKeep || HK_KEEP_RE.test(p.ch.display)) ? '香港台' : (p.ch.group || '未分组');
     if (!byGroup[g]) byGroup[g] = [];
     byGroup[g].push(p.ch);
   }
   const lines = ['#EXTM3U'];
   let written = 0;
-  for (const g of Object.keys(byGroup).sort((a, b) => a.localeCompare(b, 'zh'))) {
+  const groupOrder = Object.keys(byGroup).sort((a, b) => {
+    if (a === '香港台') return -1;
+    if (b === '香港台') return 1;
+    return a.localeCompare(b, 'zh');
+  });
+  for (const g of groupOrder) {
     for (const ch of byGroup[g].sort((a, b) => a.display.localeCompare(b.display, 'zh'))) {
       const attrs = [];
       if (ch.tvgId) attrs.push(`tvg-id="${ch.tvgId}"`);
