@@ -30,6 +30,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || echo "远程无新提交"
           git add live_all.m3u live_builder_report.txt
           git commit -m "每日直播源自动更新 $(date +%F)" || echo "本次无变化，无需提交"
           git push
