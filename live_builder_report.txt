@@ -1,0 +1,14 @@
+智能直播源聚合报告（云端自动更新）
+时间：2026/10/19 04:48:13
+========================================
+[拉取] iptv-org中文 | 214 频道 | https://iptv-org.github.io/iptv/languages/zho.m3u
+[拉取] 海外中文大包 | 339 频道 | https://m3u.ibert.me/o_s_cn.m3u
+[拉取] 香港台 | 17 频道 | https://iptv-org.github.io/iptv/countries/hk.m3u
+[拉取] 大陆台 | 147 频道 | https://iptv-org.github.io/iptv/countries/cn.m3u
+[拉取] 大陆补充 | 103 频道 | https://m3u.ibert.me/cn_c.m3u
+[解析] 上游条目 820 条 → 剔除 IPv6 28 条、黑名单域名 0 条、.ctv推广流 75 条、关键词 0 条 → 合并为 495 个频道名
+[探测] 可用频道 52 个，失效频道 443 个，耗时 58.6s
+[失效示例] CCTV-1 HD (1080p)、CCTV-16 HD (1080p)、CCTV-6 HD (1080p)、CCTV-4K HD (1080p)、Berita RTM [Geo-blocked]、8TV、Beijing Satellite TV [Not 24/7]、Beijing Satellite TV HD (1080p)、Bingtuan Satellite TV (540p) [Not 24/7]、BRTV Kaku Childrens Channel、BSTV (Hong Kong) (576p)、CCTV-4 America (1080p)、CCTV-4 Europe、CCTV-5+、CCTV-6 [Geo-blocked]、CCTV-9 (576i)、CCTV-13 HD (1080p)、CCTV-15 (1080p)、Celestial Movies (576i)、CETV-1 (576p) 等443 个
+[输出] 已生成 /home/runner/work/hotel-tv/hotel-tv/live_all.m3u（52 个可用频道）
+========================================
+汇总：聚合 52 个可用频道（原 820 条），耗时 58.6s
