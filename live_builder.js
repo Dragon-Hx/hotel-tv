@@ -24,7 +24,7 @@ const UPSTREAM = [
 ];
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0';
-const PROBE_TIMEOUT = 5000; // 单流探测超时（毫秒）
+const PROBE_TIMEOUT = 8000; // 单流探测超时（毫秒）
 const MAX_CANDIDATES = 6; // 每个频道最多探测几个候选流
 const CONCURRENCY = 40; // 频道级并发数
 
@@ -121,18 +121,20 @@ function probe(url) {
       .then(async (res) => {
         clearTimeout(timer);
         if (!res.ok) {
-          resolve({ ok: false, ms: Date.now() - start, reason: 'HTTP ' + res.status });
+          // 5xx 可能是服务器临时故障（不确定）；4xx 基本是死链
+          const code = res.status;
+          resolve({ ok: false, uncertain: code >= 500, ms: Date.now() - start, reason: 'HTTP ' + code });
           return;
         }
         // 重定向后的最终域名也要过黑名单
         if (isBlockedHost(res.url) || isJunkStream(res.url)) {
-          resolve({ ok: false, ms: Date.now() - start, reason: '最终跳转至黑名单/推广源' });
+          resolve({ ok: false, uncertain: false, ms: Date.now() - start, reason: '最终跳转至黑名单/推广源' });
           return;
         }
         const reader = res.body.getReader();
         let buf = Buffer.alloc(0);
         let bytes = 0;
-        while (bytes < 32768) {
+        while (bytes < 8192) {
           const { value, done } = await reader.read();
           if (done) break;
           if (value) {
@@ -145,11 +147,11 @@ function probe(url) {
         const text = buf.toString('utf8').toLowerCase();
         // 明确是 HTML / JSON / 文本错误页 → 视为假流
         if (/<(!doctype|html|head|body|script|div)/.test(text) && !/\.ts|\.flv|adts/.test(text.slice(0, 64))) {
-          resolve({ ok: false, ms: Date.now() - start, reason: '返回网页而非流' });
+          resolve({ ok: false, uncertain: false, ms: Date.now() - start, reason: '返回网页而非流' });
           return;
         }
         if (/^\s*[{[]/.test(text) && !/#extm3u|#extinf/.test(text)) {
-          resolve({ ok: false, ms: Date.now() - start, reason: '返回 JSON 而非流' });
+          resolve({ ok: false, uncertain: false, ms: Date.now() - start, reason: '返回 JSON 而非流' });
           return;
         }
         // 流特征：m3u8 / ts / flv / adts / mp4
@@ -158,11 +160,18 @@ function probe(url) {
           /\.ts([?#]|$)/.test(text) ||
           /\.flv([?#]|$)/.test(text) ||
           /adts|mp4a|ftyp/.test(text);
-        resolve({ ok: looksStream && bytes > 0, ms: Date.now() - start, bytes });
+        resolve({ ok: looksStream && bytes > 0, uncertain: false, ms: Date.now() - start, bytes });
       })
       .catch((e) => {
         clearTimeout(timer);
-        resolve({ ok: false, ms: Date.now() - start, reason: e.name === 'AbortError' ? '超时' : e.message });
+        // 超时/网络抖动：云端（美国）连不上的源，国内电视可能能播 → 标记为"不确定"，保留
+        if (e.name === 'AbortError') {
+          resolve({ ok: false, uncertain: true, ms: Date.now() - start, reason: '超时' });
+        } else if (/fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET/i.test(e.message || '')) {
+          resolve({ ok: false, uncertain: false, ms: Date.now() - start, reason: e.message });
+        } else {
+          resolve({ ok: false, uncertain: true, ms: Date.now() - start, reason: e.message });
+        }
       });
   });
 }
@@ -216,7 +225,7 @@ async function pool(items, worker, size) {
   }
   report.push(`[解析] 上游条目 ${all.length} 条 → 剔除 IPv6 ${filtered6} 条、黑名单域名 ${filteredBlock} 条、.ctv推广流 ${filteredCtv} 条、关键词 ${filteredKw} 条 → 合并为 ${groups.size} 个频道名`);
 
-  // 3. 并发探测：每个频道挑最快的可用流
+  // 3. 并发探测：每个频道挑最快的可用流；探测超时/不确定的也保留（国内电视可能能播）
   const tasks = [...groups.entries()];
   const picked = [];
   const dead = [];
@@ -232,8 +241,11 @@ async function pool(items, worker, size) {
         return Object.assign({}, c, r);
       }, Math.min(MAX_CANDIDATES, cands.length));
       const okList = results.filter((r) => r.ok).sort((a, b) => a.ms - b.ms);
+      const uncertainList = results.filter((r) => !r.ok && r.uncertain).sort((a, b) => a.ms - b.ms);
       if (okList.length > 0) {
-        picked.push({ key, ch: okList[0] });
+        picked.push({ key, ch: okList[0], uncertain: false });
+      } else if (uncertainList.length > 0) {
+        picked.push({ key, ch: uncertainList[0], uncertain: true });
       } else {
         dead.push({ key, display: chans[0].display });
       }
@@ -242,7 +254,8 @@ async function pool(items, worker, size) {
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, tasks.length) }, () => worker()));
 
   const probeMs = Date.now() - t0;
-  report.push(`[探测] 可用频道 ${picked.length} 个，失效频道 ${dead.length} 个，耗时 ${(probeMs / 1000).toFixed(1)}s`);
+  const uncertainCount = picked.filter((p) => p.uncertain).length;
+  report.push(`[探测] 可用频道 ${picked.length} 个（其中云端探测超时/待定 ${uncertainCount} 个，可能受服务器地理位置影响），失效频道 ${dead.length} 个，耗时 ${(probeMs / 1000).toFixed(1)}s`);
   if (dead.length > 0) {
     const sample = dead.slice(0, 20).map((d) => d.display).join('、');
     report.push(`[失效示例] ${sample}${dead.length > 20 ? ' 等' + dead.length + ' 个' : ''}`);
